@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculatrice de Rendement</title>
+</head>
+<body style="background: #0a0a0a; color: white; font-family: system-ui, sans-serif;">
+    <div style="max-width: 1200px; margin: 40px auto; padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+        <!-- Partie gauche : formulaire -->
+        <div>
+            <div style="margin-bottom: 30px;">
+                <label style="display: block; color: #808080; margin-bottom: 8px;">Capital initial</label>
+                <input type="number" id="capital" value="10000" 
+                       style="width: 100%; background: transparent; border: none; border-bottom: 1px solid #333; 
+                              color: white; font-size: 24px; padding: 8px 0;">
+                <div style="text-align: right; color: #666; font-size: 14px;">EUR</div>
+            </div>
+
+            <div style="margin-bottom: 30px;">
+                <label style="display: block; color: #808080; margin-bottom: 8px;">Épargne mensuelle</label>
+                <input type="number" id="epargne" value="100"
+                       style="width: 100%; background: transparent; border: none; border-bottom: 1px solid #333;
+                              color: white; font-size: 24px; padding: 8px 0;">
+                <div style="text-align: right; color: #666; font-size: 14px;">EUR</div>
+            </div>
+
+            <div style="margin-bottom: 30px;">
+                <label style="display: block; color: #808080; margin-bottom: 8px;">Durée</label>
+                <input type="number" id="duree" value="20"
+                       style="width: 100%; background: transparent; border: none; border-bottom: 1px solid #333;
+                              color: white; font-size: 24px; padding: 8px 0;">
+                <div style="text-align: right; color: #666; font-size: 14px;">ANNÉES</div>
+            </div>
+
+            <div style="margin-bottom: 30px;">
+                <label style="display: block; color: #808080; margin-bottom: 8px;">Taux d'intérêt</label>
+                <input type="number" id="taux" value="5"
+                       style="width: 100%; background: transparent; border: none; border-bottom: 1px solid #333;
+                              color: white; font-size: 24px; padding: 8px 0;">
+                <div style="text-align: right; color: #666; font-size: 14px;">%</div>
+            </div>
+        </div>
+
+        <!-- Partie droite : résultats -->
+        <div>
+            <div style="font-size: 48px; text-align: right; margin-bottom: 40px;">
+                <span id="capital_final">66 212</span> €
+            </div>
+
+            <div style="margin-bottom: 40px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                    <span style="color: #808080;">Versements</span>
+                    <span id="capital_investi">34 000 €</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #808080;">Intérêts</span>
+                    <span id="interets_generes">32 212 €</span>
+                </div>
+            </div>
+
+            <div style="height: 300px;">
+                <canvas id="evolutionChart"></canvas>
+            </div>
+
+            <div style="text-align: center; color: #808080; margin-top: 40px; line-height: 1.6;" id="summary">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let chart = null;
+
+        // Fonction pour charger Chart.js
+        function loadChartJs() {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Impossible de charger Chart.js'));
+                document.head.appendChild(script);
+            });
+        }
+
+        // Fonction de mise à jour du graphique
+        function updateChart(versements, interets) {
+            try {
+                const ctx = document.getElementById('evolutionChart').getContext('2d');
+                
+                if (chart) {
+                    chart.destroy();
+                }
+
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: versements.map((_, index) => index + 1),
+                        datasets: [{
+                            label: 'Versements',
+                            data: versements,
+                            borderColor: '#4B5FBD',
+                            backgroundColor: 'rgba(75, 95, 189, 0.1)',
+                            fill: true
+                        }, {
+                            label: 'Intérêts',
+                            data: interets,
+                            borderColor: '#C4A484',
+                            backgroundColor: 'rgba(196, 164, 132, 0.1)',
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#808080'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                grid: {
+                                    color: '#333'
+                                },
+                                ticks: {
+                                    color: '#808080'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: '#808080'
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour du graphique:", error);
+            }
+        }
+
+        // Fonction principale de calcul
+        function calculer() {
+            try {
+                const capital = parseFloat(document.getElementById("capital").value) || 0;
+                const epargne = parseFloat(document.getElementById("epargne").value) || 0;
+                const duree = parseInt(document.getElementById("duree").value) || 0;
+                const taux = (parseFloat(document.getElementById("taux").value) || 0) / 100;
+
+                let montant = capital;
+                const interets = [];
+                const versements = [];
+
+                for (let i = 1; i <= duree * 12; i++) {
+                    montant += epargne;
+                    if (i % 12 === 0) {
+                        montant += montant * taux;
+                    }
+                    interets.push(montant - capital - epargne * i);
+                    versements.push(capital + epargne * i);
+                }
+
+                const capitalInvesti = capital + (epargne * duree * 12);
+                const interetsGeneres = montant - capitalInvesti;
+
+                document.getElementById("capital_final").textContent = 
+                    Math.round(montant).toLocaleString('fr-FR');
+                document.getElementById("capital_investi").textContent = 
+                    Math.round(capitalInvesti).toLocaleString('fr-FR') + ' €';
+                document.getElementById("interets_generes").textContent = 
+                    Math.round(interetsGeneres).toLocaleString('fr-FR') + ' €';
+
+                updateChart(versements, interets);
+
+                document.getElementById("summary").innerHTML = 
+                    `Avec un capital initial de <strong>${capital.toLocaleString('fr-FR')} €</strong> 
+                     et en investissant mensuellement <strong>${epargne.toLocaleString('fr-FR')} €</strong> 
+                     pendant <strong>${duree} ans</strong> à <strong>${(taux * 100).toFixed(1)}%</strong>, 
+                     vous obtenez un capital de <strong>${Math.round(montant).toLocaleString('fr-FR')} €</strong>.`;
+
+            } catch (error) {
+                console.error("Erreur lors du calcul:", error);
+            }
+        }
+
+        // Fonction d'initialisation
+        async function init() {
+            try {
+                await loadChartJs();
+                console.log('Chart.js chargé avec succès');
+
+                // Ajouter les écouteurs d'événements
+                document.querySelectorAll('input').forEach(input => {
+                    input.addEventListener('input', calculer);
+                });
+
+                // Premier calcul
+                calculer();
+            } catch (error) {
+                console.error('Erreur lors de l\'initialisation:', error);
+                document.getElementById('evolutionChart')
+                    .insertAdjacentHTML('beforebegin', 
+                        '<div style="color: #ff4444; text-align: center; padding: 20px;">' +
+                        'Impossible de charger le graphique. Veuillez rafraîchir la page.' +
+                        '</div>');
+            }
+        }
+
+        // Démarrage quand le DOM est chargé
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
